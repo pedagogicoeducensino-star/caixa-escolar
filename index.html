@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Biblioteca para gerar o PDF automático -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    :root { 
+      --laranja: #FF8C00; 
+      --amarelo: #FFD700; 
+      --cinza-fundo: #f4f5f7;
+      --cinza-texto: #333333;
+      --cinza-borda: #e2e8f0;
+    }
+    
+    /* Padronização Geral - ACESSIBILIDADE: Aumentado para 15px */
+    body { 
+      background-color: var(--cinza-fundo); 
+      font-family: system-ui, -apple-system, sans-serif; 
+      color: var(--cinza-texto);
+      font-size: 15px;
+    }
+    
+    /* Configuração Estrita de Tamanhos (Aumentados a pedido do usuário) */
+    h1.titulo-topo { 
+      font-size: 25px; 
+      font-weight: 700; 
+      color: var(--cinza-texto); 
+    }
+    
+    h3, h4, h5, .titulo-card { 
+      font-size: 19px !important; 
+      font-weight: 700; 
+      margin-bottom: 15px;
+    }
+    
+    /* Forçando todos os elementos comuns para o tamanho de 15px */
+    span, label, input, select, button, li, div {
+      font-size: 15px;
+    }
+    
+    .card-3d { 
+      background: white; 
+      border-radius: 12px; 
+      padding: 22px; 
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
+      border-top: 5px solid var(--laranja); 
+      margin-bottom: 20px; 
+    }
+    
+    /* Configuração da Logo Ampliada */
+    .logo-escola {
+      max-height: 95px;
+      object-fit: contain;
+      margin-bottom: 15px;
+    }
+    
+    /* Botão com Gradiente Diagonal da Escola */
+    .btn-ouro { 
+      background: linear-gradient(135deg, var(--laranja), var(--amarelo)); 
+      color: white; 
+      font-weight: 600; 
+      border: none; 
+      transition: opacity 0.2s;
+    }
+    .btn-ouro:hover { 
+      opacity: 0.9; 
+      color: white;
+    }
+    
+    .btn-trocar {
+      border: 1px solid var(--cinza-texto);
+      background: transparent;
+      color: var(--cinza-texto);
+      border-radius: 6px;
+      padding: 6px 14px;
+    }
+    .btn-trocar:hover {
+      background: var(--cinza-texto);
+      color: white;
+    }
+
+    /* Cores das Caixas de Destaque */
+    .valor-positivo { color: #2e7d32; font-weight: 600; }
+    .valor-negativo { color: #c62828; font-weight: 600; }
+    .valor-destaque { font-size: 28px; font-weight: 700; color: var(--laranja); }
+
+    /* Classes do Relatório do Histórico */
+    .hist-abertura { color: #1565c0; font-weight: normal; }
+    .hist-entrada { color: #2e7d32; font-weight: normal; }
+    .hist-sangria { color: #c62828; font-weight: normal; }
+    .hist-troca { color: #ef6c00; font-weight: normal; }
+
+    /* Estilo exclusivo para quando for exportar/imprimir o PDF */
+    @media print {
+      body * { visibility: hidden; }
+      #areaHistoricoPrint, #areaHistoricoPrint * { visibility: visible; }
+      #areaHistoricoPrint { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; }
+      .btn, .btn-sm, button, .no-print { display: none !important; } 
+      .historico-corpo { max-height: none !important; overflow: visible !important; } 
+      .logo-print { display: block !important; } 
+    }
+  </style>
+</head>
+<body class="p-4">
+
+  <div id="telaAbertura" class="card-3d mx-auto" style="max-width: 420px; margin-top: 5% !important;">
+    <div class="text-center">
+      <img src="https://i.imgur.com/4VSDLTp.png" alt="Logo Educ" class="logo-escola">
+    </div>
+    <h4 class="text-center mb-4">🔑 Abertura de Caixa</h4>
+    <div class="mb-3">
+      <label class="form-label mb-1">Código do Colaborador (Senha)</label>
+      <input type="password" id="codigoColaborador" class="form-control form-control-lg" placeholder="••••••••">
+    </div>
+    <div class="mb-4">
+      <label class="form-label mb-1">Valor Inicial em Caixa (R$)</label>
+      <input type="number" id="valorAbertura" class="form-control form-control-lg" placeholder="0.00">
+    </div>
+    <button class="btn btn-ouro w-100 p-2" onclick="iniciarCaixa()">Abrir o Caixa</button>
+  </div>
+
+  <div id="telaPrincipal" class="container" style="display: none; max-width: 1100px;">
+    <div class="text-center mb-4">
+      <img src="https://i.imgur.com/4VSDLTp.png" alt="Logo Educ" class="logo-escola mb-2"><br>
+      <h1 class="titulo-topo">Fluxo de Caixa da Educ Centro de Ensino</h1>
+    </div>
+
+    <div class="card-3d py-3">
+      <div class="row align-items-center">
+        <div class="col-6">
+          <span>Colaborador Operando: <strong><span id="nomeDisplay"></span></strong></span>
+        </div>
+        <div class="col-6 text-end">
+          <button class="btn-trocar" onclick="alterarColaborador()">🔄 Trocar Colaborador</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-8">
+        <div class="card-3d">
+          <h5 class="titulo-card">📥 Movimentação</h5>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="mb-1">Tipo:</label>
+              <select id="tipoMov" class="form-select">
+                <option value="">Selecione...</option>
+                <option value="mensalidade">Mensalidade</option>
+                <option value="matricula">Taxa de matrícula</option>
+                <option value="diferenca">Diferença</option>
+                <option value="material">Material didático</option>
+                <option value="multa">Multa rescisória</option>
+              </select>
+            </div>
+            <div class="col-md-6"><label class="mb-1">Matrícula:</label><input type="text" id="mat" class="form-control"></div>
+            <div class="col-md-3"><label class="mb-1">Cobrar:</label><input type="number" id="cobrar" class="form-control" oninput="calcular()"></div>
+            <div class="col-md-3"><label class="mb-1">Recebido:</label><input type="number" id="recebido" class="form-control" oninput="calcular()"></div>
+            <div class="col-md-3"><label class="mb-1">Troco:</label><input type="text" id="troco" class="form-control bg-light" readonly></div>
+            <div class="col-md-3"><label class="mb-1">Entregue:</label><input type="number" id="entregue" class="form-control"></div>
+            <div class="col-12 mt-4"><button class="btn btn-ouro w-100 p-2" onclick="confirmar()">Confirmar Movimentação</button></div>
+          </div>
+        </div>
+
+        <div class="card-3d" style="border-top-color: #dc3545;">
+          <h5 class="titulo-card text-danger">📤 Sangria (Retirada)</h5>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="mb-1">Valor de Retirada:</label><input type="number" id="valorSangria" class="form-control"></div>
+            <div class="col-md-6"><label class="mb-1">Motivação:</label>
+              <select id="motivoSangria" class="form-select">
+                <option value="">Selecione...</option>
+                <option value="contas">Pagar contas</option>
+                <option value="celular">Recarga de Celular</option>
+                <option value="gratificacao">Gratificações</option>
+                <option value="comissao">Comissões</option>
+                <option value="escritorio">Compra de Escritório</option>
+                <option value="balsa">Bolsa estágio</option>
+                <option value="diarias">Diárias</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
+            <div class="col-12 mt-4"><button class="btn btn-danger w-100 p-2" onclick="realizarSangria()">Confirmar Retirada</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card-3d" style="border-top-color: #6c757d;">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="titulo-card text-secondary mb-0">💰 Caixa do Dia</h5>
+            <button class="btn btn-sm p-0 border-0" onclick="toggleVisibilidadeCaixa()" id="btnVisibilidade" title="Ocultar/Mostrar Saldos" style="font-size: 20px;">👁️</button>
+          </div>
+          <hr class="my-2" style="color: var(--cinza-borda)">
+          <div class="row">
+            <div class="col-6">Abertura:<br><strong>R$ <span id="aberturaDisplay" class="valor-positivo">0.00</span></strong></div>
+            <div class="col-6">Entradas:<br><strong>R$ <span id="entradasDisplay" class="valor-positivo">0.00</span></strong></div>
+          </div>
+          <div class="mt-4">
+            Saldo Final (Teórico):<br><span class="valor-destaque">R$ <span id="saldoDiaDisplay" class="valor-positivo">0.00</span></span>
+          </div>
+        </div>
+
+        <div class="card-3d" style="border-top-color: #198754;">
+          <h5 class="titulo-card text-success">💵 Reforço de Caixa</h5>
+          <div class="row g-3">
+            <div class="col-12"><label class="mb-1">Valor Pego:</label><input type="number" id="valorReforco" class="form-control"></div>
+            <div class="col-12"><label class="mb-1">Data do Caixa:</label><input type="date" id="dataReforco" class="form-control"></div>
+            <div class="col-12 mt-3"><button class="btn btn-success w-100 p-2" onclick="realizarReforco()">Confirmar Reforço</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-2">
+      <div class="col-12">
+        <div class="card-3d" style="border-top-color: #0dcaf0;" id="areaHistoricoPrint">
+          <div class="text-center logo-print d-none mb-3">
+            <img src="https://i.imgur.com/4VSDLTp.png" alt="Logo Educ" class="logo-escola" style="max-height: 60px;">
+            <div class="fw-bold" style="font-size: 18px;">Educ Centro de Ensino - Relatório de Caixa</div>
+            <hr class="my-2">
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="titulo-card text-info mb-0">📜 Histórico de Ações do Dia</h5>
+            <div class="no-print">
+              <button class="btn btn-sm btn-outline-danger me-2" onclick="exportarPDF()">📄 Imprimir PDF</button>
+              <button class="btn btn-sm btn-outline-success" onclick="exportarExcel()">📊 Baixar Excel</button>
+            </div>
+          </div>
+          <div class="historico-corpo" style="max-height: 280px; overflow-y: auto;">
+            <ul id="listaHistorico" class="list-group list-group-flush">
+              <li class="list-group-item text-muted text-center py-3" id="msgHistoricoVazio">Nenhuma movimentação registrada ainda.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-12">
+        <div class="card-3d" style="border-top-color: #ffc107;">
+          <h3 class="text-warning text-center mb-4">🔒 Fechamento de Caixa</h3>
+          <div class="row g-3 text-center mb-4">
+            <div class="col-3">Abertura:<br><strong>R$ <span id="fAbertura">0.00</span></strong></div>
+            <div class="col-3">Entradas:<br><strong>R$ <span id="fEntradas">0.00</span></strong></div>
+            <div class="col-3">Sangrias:<br><strong>R$ <span id="fSangrias">0.00</span></strong></div>
+            <div class="col-3">Reforços:<br><strong>R$ <span id="fReforcos">0.00</span></strong></div>
+          </div>
+          <div class="row g-3 align-items-center justify-content-center">
+            <div class="col-md-5"><label class="mb-1">Valor Físico em Dinheiro (Contado):</label><input type="number" id="valorFisico" class="form-control form-control-lg" placeholder="R$ 0.00"></div>
+            <div class="col-md-3 mt-4"><button class="btn btn-warning w-100 p-2 text-dark font-weight-bold" onclick="conferirFechamento()">Conferir Valores</button></div>
+            
+            <div class="col-md-12 mt-3" id="areaResultado" style="display:none;">
+              <div class="card p-3 bg-light border-0 text-center">
+                <div id="msgDiferenca" class="mb-3"></div>
+                <div class="row g-2 align-items-center justify-content-center">
+                  <div class="col-md-5"><label class="mb-1">Valor p/ Abertura do Dia Seguinte:</label><input type="number" id="valorProximaAbertura" class="form-control"></div>
+                  <div class="col-md-4 mt-3"><button class="btn btn-warning w-100 p-2 text-dark" onclick="finalizarCaixa()">FECHAR CAIXA DEFINITIVO</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const colaboradores = { 
+      "2490": "Davi Felício", 
+      "2514": "Isabele Ferreira", 
+      "2333": "Kauan", 
+      "1478": "Paulo Henrique", 
+      "8895": "Convidado" 
+    };
+
+    let valAbertura = 0, totalEntradas = 0, totalSangrias = 0, totalReforcos = 0;
+    let nomeColaboradorAtual = ""; 
+    let dadosPlanilha = []; 
+    let valoresOcultos = false;
+
+    function iniciarCaixa() {
+      const cod = document.getElementById('codigoColaborador').value;
+      const valor = document.getElementById('valorAbertura').value;
+
+      if (cod === "" && valor === "") {
+        alert("⚠️ ATENÇÃO: Preencha o código do colaborador e o valor inicial para iniciar o caixa.");
+        return;
+      } else if (cod === "") {
+        alert("⚠️ ATENÇÃO: Preencha o código do colaborador para iniciar o caixa.");
+        return;
+      } else if (valor === "") {
+        alert("⚠️ ATENÇÃO: Preencha o valor inicial para iniciar o caixa.");
+        return;
+      }
+
+      valAbertura = parseFloat(valor) || 0;
+      
+      nomeColaboradorAtual = colaboradores[cod] || "Colaborador Autorizado";
+      document.getElementById('nomeDisplay').innerText = nomeColaboradorAtual;
+      
+      atualizarPainelCaixa();
+      
+      document.getElementById('telaAbertura').style.display = 'none';
+      document.getElementById('telaPrincipal').style.display = 'block';
+
+      registrarHistorico(`Abertura de Caixa - Valor: R$ ${valAbertura.toFixed(2)}`, "hist-abertura");
+    }
+
+    function alterarColaborador() {
+      const cod = prompt("Digite o código do NOVO colaborador que assumirá o caixa:");
+      if (cod === null) return; 
+      if (cod.trim() === "") { alert("⚠️ Código inválido!"); return; }
+
+      const novoNome = colaboradores[cod] || "Colaborador Autorizado";
+      const nomeAntigo = nomeColaboradorAtual;
+
+      nomeColaboradorAtual = novoNome;
+      document.getElementById('nomeDisplay').innerText = nomeColaboradorAtual;
+
+      registrarHistorico(`🔄 TROCA DE OPERADOR: ${nomeAntigo} passou o caixa para ${novoNome}`, "hist-troca");
+      alert(`Caixa sob responsabilidade de: ${novoNome}`);
+    }
+
+    function toggleVisibilidadeCaixa() {
+      valoresOcultos = !valoresOcultos;
+      document.getElementById('btnVisibilidade').innerText = valoresOcultos ? '🙈' : '👁️';
+      atualizarPainelCaixa();
+    }
+
+    function atualizarPainelCaixa() {
+      let s = (valAbertura + totalEntradas + totalReforcos) - totalSangrias;
+      const abDisp = document.getElementById('aberturaDisplay');
+      const entDisp = document.getElementById('entradasDisplay');
+      const salDisp = document.getElementById('saldoDiaDisplay');
+      
+      if (valoresOcultos) {
+        abDisp.innerText = "***"; entDisp.innerText = "***"; salDisp.innerText = "***";
+      } else {
+        abDisp.innerText = valAbertura.toFixed(2);
+        entDisp.innerText = totalEntradas.toFixed(2);
+        salDisp.innerText = s.toFixed(2);
+      }
+      salDisp.className = s < 0 ? 'valor-negativo valor-destaque' : 'valor-positivo valor-destaque';
+    }
+
+    function registrarHistorico(acao, classeCor = "") {
+      const lista = document.getElementById('listaHistorico');
+      const msgVazio = document.getElementById('msgHistoricoVazio');
+      if (msgVazio) msgVazio.remove(); 
+
+      const dataAtual = new Date();
+      const dataStr = dataAtual.toLocaleDateString('pt-BR');
+      const horaStr = dataAtual.toLocaleTimeString('pt-BR');
+
+      const item = document.createElement('li');
+      item.className = 'list-group-item px-0 py-2 d-flex flex-column border-bottom';
+      item.innerHTML = `
+        <span class="${classeCor}" style="font-weight: 500;">${acao}</span>
+        <span class="text-muted" style="font-size: 13px; margin-top: 3px;">Colaborador: ${nomeColaboradorAtual} | Horário: ${horaStr} | Data: ${dataStr}</span>
+      `;
+      lista.prepend(item);
+
+      dadosPlanilha.push({ Acao: acao, Colaborador: nomeColaboradorAtual, Data: dataStr, Hora: horaStr });
+    }
+
+    function exportarPDF() { window.print(); }
+
+    function exportarExcel() {
+      if(dadosPlanilha.length === 0) { alert("Não há dados para exportar."); return; }
+      let csvContent = "Acao;Colaborador;Data;Hora\n"; 
+      dadosPlanilha.forEach(row => {
+        csvContent += `"${row.Acao}";"${row.Colaborador}";"${row.Data}";"${row.Hora}"\n`;
+      });
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Historico_Caixa_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function conferirFechamento() {
+      let vFisico = parseFloat(document.getElementById('valorFisico').value) || 0;
+      let sTeorico = (valAbertura + totalEntradas + totalReforcos) - totalSangrias;
+      let diff = vFisico - sTeorico;
+      
+      document.getElementById('fAbertura').innerText = valAbertura.toFixed(2);
+      document.getElementById('fEntradas').innerText = totalEntradas.toFixed(2);
+      document.getElementById('fSangrias').innerText = totalSangrias.toFixed(2);
+      document.getElementById('fReforcos').innerText = totalReforcos.toFixed(2);
+      
+      let msg = "";
+      if (Math.abs(diff) <= 50 && diff !== 0) {
+        msg = "✅ CAIXA OK! Salvo dentro da margem de segurança. Cuidado para não ter diferença no caixa.";
+        document.getElementById('msgDiferenca').innerHTML = "<span class='text-success' style='font-weight: 600;'>" + msg + "</span>";
+      } else if (diff === 0) {
+        msg = "✅ CAIXA OK! Valores conferem perfeitamente.";
+        document.getElementById('msgDiferenca').innerHTML = "<span class='text-success' style='font-weight: 600;'>" + msg + "</span>";
+      } else if (diff > 0) {
+        msg = "💰 SOBRA: R$ " + diff.toFixed(2) + ". Verifique o registro de entradas.";
+        document.getElementById('msgDiferenca').innerHTML = "<span class='text-warning' style='font-weight: 600;'>" + msg + "</span>";
+      } else {
+        msg = "❌ FALTA: R$ " + Math.abs(diff).toFixed(2) + ". Verifique o registro de retiradas/sangrias.";
+        document.getElementById('msgDiferenca').innerHTML = "<span class='text-danger' style='font-weight: 600;'>" + msg + "</span>";
+      }
+      document.getElementById('areaResultado').style.display = 'block';
+    }
+
+    function finalizarCaixa() {
+      if(!confirm("Tem certeza que deseja fechar o caixa e baixar o relatório?")) return;
+      
+      // Preparando os visuais para o PDF (retira a barra de rolagem para printar tudo)
+      const historicoCorpo = document.querySelector('.historico-corpo');
+      const oldMaxHeight = historicoCorpo.style.maxHeight;
+      const oldOverflow = historicoCorpo.style.overflowY;
+      historicoCorpo.style.maxHeight = 'none';
+      historicoCorpo.style.overflowY = 'visible';
+
+      // Mostra a logo que fica escondida
+      const logoPrint = document.querySelector('.logo-print');
+      logoPrint.classList.remove('d-none');
+      logoPrint.classList.add('d-block');
+
+      // Esconde os botões
+      const botoesPrint = document.querySelector('.no-print');
+      botoesPrint.style.display = 'none';
+
+      const elemento = document.getElementById('areaHistoricoPrint');
+      const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+      
+      // CONFIGURAÇÃO DO PDF (O useCORS salva a vida aqui para puxar a foto do Imgur)
+      const opt = {
+        margin:       10,
+        filename:     `Fechamento_Caixa_${dataHoje}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      // Aguarda 500ms para a tela redesenhar sem a barra de rolagem, depois bate a "foto"
+      setTimeout(() => {
+        html2pdf().set(opt).from(elemento).save().then(() => {
+          
+          // Retorna o design ao normal
+          historicoCorpo.style.maxHeight = oldMaxHeight;
+          historicoCorpo.style.overflowY = oldOverflow;
+          logoPrint.classList.add('d-none');
+          logoPrint.classList.remove('d-block');
+          botoesPrint.style.display = 'block';
+
+          // Reset do sistema inteiro
+          valAbertura = 0; totalEntradas = 0; totalSangrias = 0; totalReforcos = 0; nomeColaboradorAtual = "";
+          dadosPlanilha = []; valoresOcultos = false;
+          document.getElementById('btnVisibilidade').innerText = '👁️';
+          
+          document.getElementById('telaPrincipal').style.display = 'none';
+          document.getElementById('areaResultado').style.display = 'none';
+          document.getElementById('telaAbertura').style.display = 'block';
+          
+          document.getElementById('codigoColaborador').value = "";
+          document.getElementById('valorAbertura').value = "";
+          document.getElementById('valorFisico').value = "";
+          document.getElementById('valorProximaAbertura').value = "";
+          
+          document.getElementById('listaHistorico').innerHTML = '<li class="list-group-item text-muted text-center py-3" id="msgHistoricoVazio">Nenhuma movimentação registrada ainda.</li>';
+          
+          alert("Caixa fechado com sucesso!\n\n📄 IMPORTANTE: O Relatório em PDF foi baixado. Coloque-o na Pasta de Movimentação do Caixa.");
+        });
+      }, 500); 
+    }
+
+    function confirmar() {
+      let cStr = document.getElementById('cobrar').value;
+      let rStr = document.getElementById('recebido').value;
+      let eStr = document.getElementById('entregue').value;
+      let selectMov = document.getElementById('tipoMov');
+      let matricula = document.getElementById('mat').value;
+
+      if (!selectMov.value || !matricula || cStr === "" || rStr === "" || eStr === "") { 
+        alert("⚠️ Preencha todos os campos!"); return; 
+      }
+      
+      let c = parseFloat(cStr) || 0;
+      let r = parseFloat(rStr) || 0;
+      let e = parseFloat(eStr) || 0;
+
+      let trocoTeorico = r - c;
+      let alertaTrocoAMais = false;
+
+      if (e > trocoTeorico) {
+        let conf1 = confirm(`⚠️ ATENÇÃO: O valor de troco entregue (R$ ${e.toFixed(2)}) é MAIOR do que o troco real calculado (R$ ${trocoTeorico.toFixed(2)}).\n\nIsso causará prejuízo e quebra de caixa! Deseja prosseguir mesmo assim?`);
+        if (!conf1) return;
+        
+        let conf2 = confirm(`⚠️ CONFIRMAÇÃO EXTRA: Você tem certeza absoluta de que entregou R$ ${e.toFixed(2)} de troco para esta matrícula?`);
+        if (!conf2) return;
+        
+        alertaTrocoAMais = true;
+      }
+
+      totalEntradas += c + ((r - c) - e);
+      document.getElementById('entradasDisplay').innerText = totalEntradas.toFixed(2);
+      
+      atualizarPainelCaixa(); 
+      
+      let nomeTipoMov = selectMov.options[selectMov.selectedIndex].text;
+      let msgHistorico = `Entrada: ${nomeTipoMov} (Matrícula: ${matricula}) - Valor cobrado: R$ ${c.toFixed(2)}`;
+      if (alertaTrocoAMais) {
+        msgHistorico += ` | ⚠️ ALERTA DE PREJUÍZO: Troco entregue a mais! (Calculado: R$ ${trocoTeorico.toFixed(2)} | Entregue: R$ ${e.toFixed(2)})`;
+      }
+      
+      registrarHistorico(msgHistorico, alertaTrocoAMais ? "hist-sangria" : "hist-entrada");
+      
+      limparCampos(); 
+      
+      // Alertas disparados em sequência
+      alert("Movimentação Registrada!");
+      alert("🚨 ATENÇÃO: Dê baixa dessa Movimentação no Sistema do CGD para não constar pendências na matrícula do aluno.");
+    }
+
+    function realizarSangria() {
+      let v = parseFloat(document.getElementById('valorSangria').value) || 0;
+      let selectMotivo = document.getElementById('motivoSangria');
+      
+      if (v <= 0 || !selectMotivo.value) { alert("Informe valor e motivo!"); return; }
+      
+      totalSangrias += v; 
+      atualizarPainelCaixa();
+      
+      let nomeMotivo = selectMotivo.options[selectMotivo.selectedIndex].text;
+      registrarHistorico(`Retirada / Sangria: ${nomeMotivo} - Retirado: R$ ${v.toFixed(2)}`, "hist-sangria");
+
+      document.getElementById('valorSangria').value = "";
+      selectMotivo.value = "";
+      
+      // Alertas disparados em sequência
+      alert("Retirada registrada!");
+      alert("🚨 ATENÇÃO: Lembre-se de registrar esta despesa no sistema CGD seguindo o caminho:\nFinanceiro > Contas > Caixa Secretaria > Despesa > Cadastrar Despesa.");
+    }
+
+    function realizarReforco() {
+      let v = parseFloat(document.getElementById('valorReforco').value) || 0;
+      let dataRef = document.getElementById('dataReforco').value;
+      if (v <= 0 || !dataRef) { alert("⚠️ Informe valor e data!"); return; }
+      
+      totalReforcos += v; 
+      atualizarPainelCaixa();
+      
+      registrarHistorico(`Reforço de Caixa: Injetado R$ ${v.toFixed(2)} (Ref. ao caixa de: ${dataRef.split('-').reverse().join('/')})`, "hist-entrada");
+
+      document.getElementById('valorReforco').value = "";
+      document.getElementById('dataReforco').value = "";
+      alert("Reforço registrado!");
+    }
+
+    function limparCampos() {
+      document.getElementById('tipoMov').value = "";
+      document.getElementById('mat').value = "";
+      document.getElementById('cobrar').value = "";
+      document.getElementById('recebido').value = "";
+      document.getElementById('troco').value = "";
+      document.getElementById('entregue').value = "";
+    }
+
+    function calcular() {
+      let c = parseFloat(document.getElementById('cobrar').value) || 0;
+      let r = parseFloat(document.getElementById('recebido').value) || 0;
+      document.getElementById('troco').value = (r - c).toFixed(2);
+    }
+  </script>
+</body>
+</html>
