@@ -140,27 +140,38 @@
 
     <div class="row">
       <div class="col-md-8">
-        <div class="card-3d">
-          <h5 class="titulo-card">📥 Movimentação</h5>
-          <div class="row g-3">
-            <div class="col-md-6"><label class="mb-1">Tipo:</label>
-              <select id="tipoMov" class="form-select">
-                <option value="">Selecione...</option>
-                <option value="mensalidade">Mensalidade</option>
-                <option value="matricula">Taxa de matrícula</option>
-                <option value="diferenca">Diferença</option>
-                <option value="material">Material didático</option>
-                <option value="multa">Multa rescisória</option>
-              </select>
-            </div>
-            <div class="col-md-6"><label class="mb-1">Matrícula:</label><input type="text" id="mat" class="form-control"></div>
-            <div class="col-md-3"><label class="mb-1">Cobrar:</label><input type="number" id="cobrar" class="form-control" oninput="calcular()"></div>
-            <div class="col-md-3"><label class="mb-1">Recebido:</label><input type="number" id="recebido" class="form-control" oninput="calcular()"></div>
-            <div class="col-md-3"><label class="mb-1">Troco:</label><input type="text" id="troco" class="form-control bg-light" readonly></div>
-            <div class="col-md-3"><label class="mb-1">Entregue:</label><input type="number" id="entregue" class="form-control"></div>
-            <div class="col-12 mt-4"><button class="btn btn-ouro w-100 p-2" onclick="confirmar()">Confirmar Movimentação</button></div>
-          </div>
-        </div>
+<div class="card-3d">
+  <h5 class="titulo-card">📥 Movimentação</h5>
+  <div class="row g-3">
+    <div class="col-md-6"><label class="mb-1">Tipo:</label>
+      <select id="tipoMov" class="form-select">
+        <option value="">Selecione...</option>
+        <option value="mensalidade">Mensalidade</option>
+        <option value="matricula">Taxa de matrícula</option>
+        <option value="diferenca">Diferença</option>
+        <option value="material">Material didático</option>
+        <option value="multa">Multa rescisória</option>
+      </select>
+    </div>
+    <div class="col-md-6"><label class="mb-1">Matrícula:</label><input type="text" id="mat" class="form-control"></div>
+    
+    <div class="col-md-3"><label class="mb-1">Valor Original:</label><input type="number" id="cobrar" class="form-control" oninput="calcular()"></div>
+    <div class="col-md-3"><label class="mb-1">Aplicar Desconto:</label>
+      <select id="temDesconto" class="form-select" onchange="calcular()">
+        <option value="Nao">Não</option>
+        <option value="Sim">Sim</option>
+      </select>
+    </div>
+    <div class="col-md-3"><label class="mb-1">Valor Desconto:</label><input type="number" id="valorDesconto" class="form-control" value="0" oninput="calcular()"></div>
+    <div class="col-md-3"><label class="mb-1">Cobrado Final:</label><input type="text" id="cobradoFinal" class="form-control bg-light" readonly></div>
+    
+    <div class="col-md-4"><label class="mb-1">Recebido:</label><input type="number" id="recebido" class="form-control" oninput="calcular()"></div>
+    <div class="col-md-4"><label class="mb-1">Troco:</label><input type="text" id="troco" class="form-control bg-light" readonly></div>
+    <div class="col-md-4"><label class="mb-1">Entregue:</label><input type="number" id="entregue" class="form-control"></div>
+    
+    <div class="col-12 mt-4"><button class="btn btn-ouro w-100 p-2" onclick="confirmar()">Confirmar Movimentação</button></div>
+  </div>
+</div>
 
         <div class="card-3d" style="border-top-color: #dc3545;">
           <h5 class="titulo-card text-danger">📤 Sangria (Retirada)</h5>
@@ -563,11 +574,74 @@
       document.getElementById('entregue').value = "";
     }
 
-    function calcular() {
-      let c = parseFloat(document.getElementById('cobrar').value) || 0;
-      let r = parseFloat(document.getElementById('recebido').value) || 0;
-      document.getElementById('troco').value = (r - c).toFixed(2);
+function calcular() {
+    let c = parseFloat(document.getElementById('cobrar').value) || 0;
+    let r = parseFloat(document.getElementById('recebido').value) || 0;
+    
+    // Lógica de Desconto
+    let temDesc = document.getElementById('temDesconto').value;
+    let vDesc = temDesc === "Sim" ? (parseFloat(document.getElementById('valorDesconto').value) || 0) : 0;
+    
+    // Valor final após desconto
+    let cobradoFinal = c - vDesc;
+    document.getElementById('cobradoFinal').value = cobradoFinal.toFixed(2);
+    
+    // Cálculo do troco baseado no valor já descontado
+    document.getElementById('troco').value = (r - cobradoFinal).toFixed(2);
+  }
+
+  function confirmar() {
+    let cOriginal = parseFloat(document.getElementById('cobrar').value) || 0;
+    let cobradoFinal = parseFloat(document.getElementById('cobradoFinal').value) || 0;
+    let r = parseFloat(document.getElementById('recebido').value) || 0;
+    let e = parseFloat(document.getElementById('entregue').value) || 0;
+    let selectMov = document.getElementById('tipoMov');
+    let matricula = document.getElementById('mat').value;
+
+    if (!selectMov.value || !matricula || document.getElementById('cobrar').value === "" || document.getElementById('recebido').value === "" || document.getElementById('entregue').value === "") { 
+      alert("⚠️ Preencha todos os campos!"); return; 
     }
+    
+    let trocoTeorico = r - cobradoFinal;
+    let alertaTrocoAMais = false;
+
+    if (e > trocoTeorico) {
+      let conf1 = confirm(`⚠️ ATENÇÃO: O valor de troco entregue (R$ ${e.toFixed(2)}) é MAIOR do que o troco real calculado (R$ ${trocoTeorico.toFixed(2)}).\n\nIsso causará prejuízo e quebra de caixa! Deseja prosseguir mesmo assim?`);
+      if (!conf1) return;
+      let conf2 = confirm(`⚠️ CONFIRMAÇÃO EXTRA: Você tem certeza absoluta de que entregou R$ ${e.toFixed(2)} de troco?`);
+      if (!conf2) return;
+      alertaTrocoAMais = true;
+    }
+
+    // Atualiza o total de entradas usando o valor final (já descontado)
+    totalEntradas += cobradoFinal + ((r - cobradoFinal) - e);
+    document.getElementById('entradasDisplay').innerText = totalEntradas.toFixed(2);
+    
+    atualizarPainelCaixa(); 
+    
+    let nomeTipoMov = selectMov.options[selectMov.selectedIndex].text;
+    let msgHistorico = `Entrada: ${nomeTipoMov} (Matrícula: ${matricula}) - Valor Cobrado: R$ ${cobradoFinal.toFixed(2)}`;
+    if (alertaTrocoAMais) {
+      msgHistorico += ` | ⚠️ ALERTA DE PREJUÍZO: Troco entregue a mais!`;
+    }
+    
+    registrarHistorico(msgHistorico, alertaTrocoAMais ? "hist-sangria" : "hist-entrada");
+    
+    limparCampos(); 
+    alert("Movimentação Registrada!");
+  }
+
+  function limparCampos() {
+    document.getElementById('tipoMov').value = "";
+    document.getElementById('mat').value = "";
+    document.getElementById('cobrar').value = "";
+    document.getElementById('temDesconto').value = "Nao";
+    document.getElementById('valorDesconto').value = "0";
+    document.getElementById('cobradoFinal').value = "";
+    document.getElementById('recebido').value = "";
+    document.getElementById('troco').value = "";
+    document.getElementById('entregue').value = "";
+  }
   </script>
 </body>
 </html>
