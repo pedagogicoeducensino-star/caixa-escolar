@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Inclusão do FontAwesome para exibir os ícones de editar e excluir -->
+  <!-- Ícones -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Biblioteca para gerar o PDF automático -->
+  <!-- Biblioteca para gerar o PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- ALERTAS ELEGANTES (SweetAlert2) -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
   <style>
     :root { 
       --laranja: #FF8C00; 
@@ -72,11 +75,11 @@
     <h4 class="text-center mb-4">🔑 Abertura de Caixa</h4>
     <div class="mb-3">
       <label class="form-label mb-1">Código do Colaborador (Senha)</label>
-      <input type="password" id="codigoColaborador" class="form-control form-control-lg" placeholder="••••••••">
+      <input type="password" id="codigoColaborador" class="form-control form-control-lg" placeholder="••••••••" onkeypress="if(event.key==='Enter') iniciarCaixa()">
     </div>
     <div class="mb-4">
       <label class="form-label mb-1">Valor Inicial em Caixa (R$)</label>
-      <input type="number" id="valorAbertura" class="form-control form-control-lg" placeholder="0.00">
+      <input type="number" id="valorAbertura" class="form-control form-control-lg" placeholder="0.00" onkeypress="if(event.key==='Enter') iniciarCaixa()">
     </div>
     <button class="btn btn-ouro w-100 p-2" onclick="iniciarCaixa()">Abrir o Caixa</button>
   </div>
@@ -201,7 +204,7 @@
       </div>
 
       <div class="col-md-4">
-        <!-- CAIXA DO DIA (Visual Corrigido) -->
+        <!-- CAIXA DO DIA -->
         <div class="card-3d" style="border-top-color: #6c757d;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h5 class="titulo-card text-secondary mb-0">💰 Caixa do Dia</h5>
@@ -215,7 +218,7 @@
             <div class="col-6 mt-3">Sangrias:<br><strong>R$ <span id="sangriasDisplay" class="valor-negativo">0.00</span></strong></div>
           </div>
           <div class="mt-4 text-center border-top pt-3">
-            Saldo Final (Teórico):<br><span class="valor-destaque">R$ <span id="saldoDiaDisplay" class="valor-positivo">0.00</span></span>
+            Saldo Final (Gaveta):<br><span class="valor-destaque">R$ <span id="saldoDiaDisplay" class="valor-positivo">0.00</span></span>
           </div>
         </div>
 
@@ -357,12 +360,12 @@
       const valorStr = document.getElementById('valorAbertura').value;
 
       if (cod === "" || valorStr === "") {
-        alert("⚠️ ATENÇÃO: Preencha o código do colaborador e o valor inicial para iniciar o caixa.");
+        Swal.fire('Atenção', 'Preencha o código do colaborador e o valor inicial para iniciar o caixa.', 'warning');
         return;
       }
 
       if (!colaboradores[cod]) {
-        alert("❌ Chave de acesso inválida! Login de colaborador recusado.");
+        Swal.fire('Erro', 'Chave de acesso inválida! Login recusado.', 'error');
         return;
       }
 
@@ -376,13 +379,32 @@
       document.getElementById('telaPrincipal').style.display = 'block';
 
       registrarHistorico(`Abertura de Caixa - Valor: R$ ${valAbertura.toFixed(2)}`, "hist-abertura", null, 'abertura');
+      
+      Swal.fire({
+        title: 'Caixa Aberto!',
+        text: `Bem-vindo(a), ${nomeColaboradorAtual}.`,
+        icon: 'success',
+        confirmButtonColor: '#FF8C00',
+        timer: 2000,
+        showConfirmButton: false
+      });
     }
 
-    function alterarColaborador() {
-      const cod = prompt("Digite o código do NOVO colaborador que assumirá o caixa:");
-      if (cod === null) return; 
+    async function alterarColaborador() {
+      const { value: cod } = await Swal.fire({
+        title: 'Trocar Operador',
+        input: 'password',
+        inputLabel: 'Digite o código do NOVO colaborador que assumirá o caixa:',
+        inputPlaceholder: 'Senha',
+        showCancelButton: true,
+        confirmButtonColor: '#FF8C00',
+        cancelButtonText: 'Cancelar'
+      });
+      
+      if (!cod) return; 
+      
       if (!colaboradores[cod]) { 
-        alert("❌ Chave de acesso inválida! Troca de colaborador recusada."); 
+        Swal.fire('Erro', 'Chave de acesso inválida! Troca recusada.', 'error');
         return; 
       }
 
@@ -393,7 +415,13 @@
       document.getElementById('nomeDisplay').innerText = nomeColaboradorAtual;
 
       registrarHistorico(`🔄 TROCA DE OPERADOR: ${nomeAntigo} passou o caixa para ${novoNome}`, "hist-troca", null, 'troca');
-      alert(`Caixa sob responsabilidade de: ${novoNome}`);
+      
+      Swal.fire({
+        title: 'Troca Realizada!',
+        text: `Caixa agora sob responsabilidade de: ${novoNome}`,
+        icon: 'success',
+        confirmButtonColor: '#FF8C00'
+      });
     }
 
     function toggleVisibilidadeCaixa() {
@@ -403,7 +431,9 @@
     }
 
     function atualizarPainelCaixa() {
+      // MATEMÁTICA DA GAVETA: (Abertura + Entradas + Reforços) - Sangrias
       let s = (valAbertura + totalEntradas + totalReforcos) - totalSangrias;
+      
       const abDisp = document.getElementById('aberturaDisplay');
       const entDisp = document.getElementById('entradasDisplay');
       const refDisp = document.getElementById('reforcosDisplay');
@@ -473,15 +503,27 @@
       return finalId;
     }
 
-    function editarItemHistorico(id) {
-      let senha = prompt("🔑 Digite a senha de autorização do Secretário(a) para EDITAR:");
-      if (senha !== "2490") { alert("❌ Senha incorreta! Edição cancelada."); return; }
+    async function editarItemHistorico(id) {
+      const { value: senha } = await Swal.fire({
+        title: 'Autorização Necessária',
+        input: 'password',
+        inputLabel: 'Digite a senha do Secretário(a) para EDITAR:',
+        showCancelButton: true,
+        confirmButtonColor: '#FF8C00',
+        cancelButtonText: 'Cancelar'
+      });
+      
+      if (!senha) return;
+      if (senha !== "2490") { 
+        Swal.fire('Erro', 'Senha incorreta! Edição cancelada.', 'error');
+        return; 
+      }
       
       let item = dadosPlanilha.find(d => d.id === id);
-      if (!item) { alert("Registro não encontrado!"); return; }
+      if (!item) { Swal.fire('Ops', 'Registro não encontrado!', 'warning'); return; }
       
       if (item.tipoReg === 'abertura' || item.tipoReg === 'troca' || item.tipoReg === 'fechamento') {
-        alert("⚠️ Este tipo de registro administrativo não pode ser reeditado pelos formulários.");
+        Swal.fire('Atenção', 'Este tipo de registro administrativo não pode ser reeditado pelos formulários.', 'warning');
         return;
       }
       
@@ -530,9 +572,21 @@
       atualizarPainelCaixa();
     }
 
-    function excluirItemHistorico(id) {
-      let senha = prompt("🔑 Digite a senha de autorização do Secretário(a) para EXCLUIR:");
-      if (senha !== "2490") { alert("❌ Senha incorreta! Exclusão cancelada."); return; }
+    async function excluirItemHistorico(id) {
+      const { value: senha } = await Swal.fire({
+        title: 'Autorização de Exclusão',
+        input: 'password',
+        inputLabel: 'Digite a senha do Secretário(a) para EXCLUIR:',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonText: 'Cancelar'
+      });
+      
+      if (!senha) return;
+      if (senha !== "2490") { 
+        Swal.fire('Erro', 'Senha incorreta! Exclusão cancelada.', 'error');
+        return; 
+      }
       
       let item = dadosPlanilha.find(d => d.id === id);
       if (item) {
@@ -550,7 +604,13 @@
         lista.innerHTML = '<li class="list-group-item text-muted text-center py-3" id="msgHistoricoVazio">Nenhuma movimentação registrada ainda.</li>';
       }
       atualizarPainelCaixa();
-      alert("Registro estornado e excluído permanentemente!");
+      
+      Swal.fire({
+        title: 'Excluído!',
+        text: 'Registro estornado e removido permanentemente.',
+        icon: 'success',
+        confirmButtonColor: '#FF8C00'
+      });
     }
 
     function gerenciarDesconto() {
@@ -581,7 +641,7 @@
       document.getElementById('troco').value = (r - cobradoFinal).toFixed(2);
     }
 
-    function confirmar() {
+    async function confirmar() {
       let cStr = document.getElementById('cobrar').value;
       let rStr = document.getElementById('recebido').value;
       let eStr = document.getElementById('entregue').value;
@@ -593,7 +653,8 @@
       let vDesc = temDescontoStr === "Sim" ? (Math.abs(parseFloat(String(vDescStr).replace(',', '.'))) || 0) : 0;
 
       if (!selectMov.value || matricula === "" || cStr === "" || rStr === "" || eStr === "") { 
-        alert("⚠️ Preencha todos os campos da Movimentação!"); return; 
+        Swal.fire('Atenção', 'Preencha todos os campos da Movimentação!', 'warning'); 
+        return; 
       }
       
       let cOriginal = Math.abs(parseFloat(String(cStr).replace(',', '.'))) || 0;
@@ -605,11 +666,27 @@
       let alertaTrocoAMais = false;
 
       if (e > trocoTeorico) {
-        let conf1 = confirm(`⚠️ ATENÇÃO: O valor de troco entregue (R$ ${e.toFixed(2)}) é MAIOR do que o troco real calculado (R$ ${trocoTeorico.toFixed(2)}).\n\nIsso causará prejuízo e quebra de caixa! Deseja prosseguir mesmo assim?`);
-        if (!conf1) return;
+        const res1 = await Swal.fire({
+          title: 'Atenção, possível prejuízo!',
+          html: `O valor de troco entregue (R$ ${e.toFixed(2)}) é <b>MAIOR</b> do que o troco calculado (R$ ${trocoTeorico.toFixed(2)}).<br><br>Deseja prosseguir mesmo assim?`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Sim, prosseguir'
+        });
+        if (!res1.isConfirmed) return;
         
-        let conf2 = confirm(`⚠️ CONFIRMAÇÃO EXTRA: Você tem certeza absoluta de que entregou R$ ${e.toFixed(2)} de troco?`);
-        if (!conf2) return;
+        const res2 = await Swal.fire({
+          title: 'Confirmação Extra',
+          text: `Você tem certeza absoluta de que entregou R$ ${e.toFixed(2)} de troco?`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          confirmButtonText: 'Sim, tenho certeza'
+        });
+        if (!res2.isConfirmed) return;
+        
         alertaTrocoAMais = true;
       }
 
@@ -672,19 +749,27 @@
       
       atualizarPainelCaixa(); 
       limparCampos(); 
-      alert("Movimentação Registrada!");
-      alert("🚨 ATENÇÃO: Dê baixa dessa Movimentação no Sistema do CGD para não constar pendências na matrícula do aluno.");
+      
+      Swal.fire({
+        title: 'Movimentação Salva!',
+        html: `Entrada registrada com sucesso na gaveta.<br><br><b>🚨 ATENÇÃO:</b> Lembre-se de dar baixa no Sistema do CGD para não constar pendências.`,
+        icon: 'success',
+        confirmButtonColor: '#2e7d32'
+      });
     }
 
-    function realizarSangria() {
+    async function realizarSangria() {
       let vStr = document.getElementById('valorSangria').value;
       let selectMotivo = document.getElementById('motivoSangria');
       let obs = document.getElementById('obsSangria').value.trim();
       
-      if (vStr === "" || !selectMotivo.value) { alert("Informe o valor e o tipo da retirada!"); return; }
+      if (vStr === "" || !selectMotivo.value) { 
+        Swal.fire('Atenção', 'Informe o valor e o tipo da retirada!', 'warning'); 
+        return; 
+      }
       
       let v = Math.abs(parseFloat(String(vStr).replace(',', '.'))) || 0;
-      totalSangrias += v;
+      totalSangrias += v; // Matemática da Sangria: Soma ao montante de retiradas (que será subtraído do total geral).
       
       let nomeMotivo = selectMotivo.options[selectMotivo.selectedIndex].text;
       let msgSangria = `Retirada / Sangria: ${nomeMotivo} - Retirado: R$ ${v.toFixed(2)}`;
@@ -722,15 +807,24 @@
       document.getElementById('obsSangria').value = "";
       selectMotivo.value = "";
       
-      atualizarPainelCaixa();
-      alert("Retirada registrada!");
-      alert("🚨 ATENÇÃO: Lembre-se de registrar esta despesa no sistema CGD seguindo o caminho:\nFinanceiro > Contas > Caixa Secretaria > Despesa > Cadastrar Despesa.");
+      atualizarPainelCaixa(); // Força a atualização do visual para descontar o valor imediatamente
+      
+      Swal.fire({
+        title: 'Retirada Deduzida!',
+        html: `O valor de <b>R$ ${v.toFixed(2)}</b> foi deduzido da sua gaveta.<br><br><b>🚨 ATENÇÃO:</b> Registre no CGD em: Financeiro > Contas > Caixa Secretaria > Despesa > Cadastrar.`,
+        icon: 'info',
+        confirmButtonColor: '#dc3545'
+      });
     }
 
-    function realizarReforco() {
+    async function realizarReforco() {
       let vStr = document.getElementById('valorReforco').value;
       let dataRef = document.getElementById('dataReforco').value;
-      if (vStr === "" || !dataRef) { alert("⚠️ Informe valor e data do reforço!"); return; }
+      
+      if (vStr === "" || !dataRef) { 
+        Swal.fire('Atenção', 'Informe o valor e a data do reforço!', 'warning'); 
+        return; 
+      }
       
       let v = Math.abs(parseFloat(String(vStr).replace(',', '.'))) || 0;
       totalReforcos += v;
@@ -765,7 +859,13 @@
       document.getElementById('valorReforco').value = "";
       document.getElementById('dataReforco').value = "";
       atualizarPainelCaixa();
-      alert("Reforço registrado!");
+      
+      Swal.fire({
+        title: 'Reforço Adicionado!',
+        text: `O valor foi somado com sucesso ao Saldo Final.`,
+        icon: 'success',
+        confirmButtonColor: '#198754'
+      });
     }
 
     function limparCampos() {
@@ -784,7 +884,7 @@
     function conferirFechamento() {
       let vFisicoStr = document.getElementById('valorFisico').value;
       if (vFisicoStr.trim() === "") {
-        alert("⚠️ Digite o Valor Físico em Dinheiro (contado na gaveta) antes de conferir os valores!");
+        Swal.fire('Ei!', 'Digite o Valor Físico em Dinheiro (contado na gaveta) antes de conferir os valores.', 'warning');
         return;
       }
 
@@ -811,19 +911,29 @@
       document.getElementById('btnFecharCaixa').disabled = false;
     }
 
-    function finalizarCaixa() {
+    async function finalizarCaixa() {
       let vFisicoStr = document.getElementById('valorFisico').value;
       let proxAbStr = document.getElementById('valorProximaAbertura').value;
       
       if(vFisicoStr.trim() === "") {
-        alert("⚠️ Por favor, preencha e confira o valor físico antes do fechamento definitivo.");
+        Swal.fire('Atenção', 'Por favor, preencha e confira o valor físico antes do fechamento.', 'warning');
         return;
       }
       if(proxAbStr.trim() === "") {
-        alert("⚠️ Informe o valor de fundo reservado para a abertura do dia seguinte!");
+        Swal.fire('Atenção', 'Informe o valor de fundo reservado para a abertura do dia seguinte!', 'warning');
         return;
       }
-      if(!confirm("Tem certeza que deseja fechar o caixa definitivamente e baixar o relatório?")) return;
+      
+      const res = await Swal.fire({
+        title: 'Fechamento Definitivo',
+        text: 'Tem certeza que deseja fechar o caixa definitivamente e baixar o relatório em PDF?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Sim, Fechar Caixa'
+      });
+      if (!res.isConfirmed) return;
       
       let vFisico = Math.abs(parseFloat(String(vFisicoStr).replace(',', '.'))) || 0;
       let proxAb = Math.abs(parseFloat(String(proxAbStr).replace(',', '.'))) || 0;
@@ -831,6 +941,13 @@
       let diff = vFisico - sTeorico;
 
       registrarHistorico(`🔒 FECHAMENTO DE CAIXA | Valor Físico (Gaveta): R$ ${vFisico.toFixed(2)} | Diferença: R$ ${diff.toFixed(2)} | Fundo Reservado P/ Amanhã: R$ ${proxAb.toFixed(2)}`, "hist-troca", null, 'fechamento');
+
+      Swal.fire({
+        title: 'Gerando PDF...',
+        html: 'Por favor, aguarde enquanto montamos seu relatório.',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+      });
 
       const historicoCorpo = document.querySelector('.historico-corpo');
       const oldMaxHeight = historicoCorpo.style.maxHeight;
@@ -883,15 +1000,23 @@
           
           document.getElementById('listaHistorico').innerHTML = '<li class="list-group-item text-muted text-center py-3" id="msgHistoricoVazio">Nenhuma movimentação registrada ainda.</li>';
           
-          alert("Caixa fechado com sucesso!\n\n📄 IMPORTANTE: O Relatório em PDF foi baixado. Coloque-o na Pasta de Movimentação do Caixa.");
+          Swal.fire({
+            title: 'Fechamento Concluído!',
+            html: 'O Relatório em PDF foi baixado.<br><br><b>📄 Coloque-o na Pasta de Movimentação do Caixa.</b>',
+            icon: 'success',
+            confirmButtonColor: '#FF8C00'
+          });
         });
-      }, 500); 
+      }, 1000); 
     }
 
     function exportarPDF() { window.print(); }
 
     function exportarExcel() {
-      if(dadosPlanilha.length === 0) { alert("Não há dados para exportar."); return; }
+      if(dadosPlanilha.length === 0) { 
+        Swal.fire('Vazio', 'Não há dados para exportar.', 'info'); 
+        return; 
+      }
       let csvContent = "Acao;Colaborador;Data;Hora\n"; 
       dadosPlanilha.forEach(row => {
         csvContent += `"${row.Acao}";"${row.Colaborador}";"${row.Data}";"${row.Hora}"\n`;
