@@ -201,18 +201,20 @@
       </div>
 
       <div class="col-md-4">
-        <!-- CAIXA DO DIA -->
+        <!-- CAIXA DO DIA (Visual Corrigido) -->
         <div class="card-3d" style="border-top-color: #6c757d;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h5 class="titulo-card text-secondary mb-0">💰 Caixa do Dia</h5>
             <button class="btn btn-sm p-0 border-0" onclick="toggleVisibilidadeCaixa()" id="btnVisibilidade" title="Ocultar/Mostrar Saldos" style="font-size: 20px;">👁️</button>
           </div>
           <hr class="my-2" style="color: var(--cinza-borda)">
-          <div class="row">
+          <div class="row g-2 text-center">
             <div class="col-6">Abertura:<br><strong>R$ <span id="aberturaDisplay" class="valor-positivo">0.00</span></strong></div>
             <div class="col-6">Entradas:<br><strong>R$ <span id="entradasDisplay" class="valor-positivo">0.00</span></strong></div>
+            <div class="col-6 mt-3">Reforços:<br><strong>R$ <span id="reforcosDisplay" class="valor-positivo">0.00</span></strong></div>
+            <div class="col-6 mt-3">Sangrias:<br><strong>R$ <span id="sangriasDisplay" class="valor-negativo">0.00</span></strong></div>
           </div>
-          <div class="mt-4">
+          <div class="mt-4 text-center border-top pt-3">
             Saldo Final (Teórico):<br><span class="valor-destaque">R$ <span id="saldoDiaDisplay" class="valor-positivo">0.00</span></span>
           </div>
         </div>
@@ -259,7 +261,7 @@
       </div>
     </div>
 
-    <!-- FECHAMENTO (Novo Layout Lado a Lado) -->
+    <!-- FECHAMENTO -->
     <div class="row">
       <div class="col-12">
         <div class="card-3d" style="border-top-color: #ffc107;">
@@ -319,7 +321,6 @@
     let valoresOcultos = false;
     let idItemEmEdicao = null;
 
-    // --- SISTEMA DE SALVAMENTO AUTOMÁTICO (SEGURANÇA CONTRA F5) ---
     function salvarEstadoCaixa() {
       const estado = {
         valAbertura, totalEntradas, totalSangrias, totalReforcos, nomeColaboradorAtual, dadosPlanilha,
@@ -351,12 +352,11 @@
       }
     }
 
-    // --- CONTROLES GERAIS ---
     function iniciarCaixa() {
       const cod = document.getElementById('codigoColaborador').value;
-      const valor = document.getElementById('valorAbertura').value;
+      const valorStr = document.getElementById('valorAbertura').value;
 
-      if (cod === "" || valor === "") {
+      if (cod === "" || valorStr === "") {
         alert("⚠️ ATENÇÃO: Preencha o código do colaborador e o valor inicial para iniciar o caixa.");
         return;
       }
@@ -366,7 +366,7 @@
         return;
       }
 
-      valAbertura = parseFloat(valor) || 0;
+      valAbertura = Math.abs(parseFloat(String(valorStr).replace(',', '.'))) || 0;
       nomeColaboradorAtual = colaboradores[cod];
       document.getElementById('nomeDisplay').innerText = nomeColaboradorAtual;
       
@@ -402,14 +402,14 @@
       atualizarPainelCaixa();
     }
 
-    // CORREÇÃO: Atualiza caixa principal e Fechamento de Caixa simultaneamente em tempo real
     function atualizarPainelCaixa() {
       let s = (valAbertura + totalEntradas + totalReforcos) - totalSangrias;
       const abDisp = document.getElementById('aberturaDisplay');
       const entDisp = document.getElementById('entradasDisplay');
+      const refDisp = document.getElementById('reforcosDisplay');
+      const sanDisp = document.getElementById('sangriasDisplay');
       const salDisp = document.getElementById('saldoDiaDisplay');
       
-      // Displays dinâmicos da seção de Fechamento (descongelados)
       const fAb = document.getElementById('fAbertura');
       const fEnt = document.getElementById('fEntradas');
       const fSan = document.getElementById('fSangrias');
@@ -417,13 +417,16 @@
       
       if (valoresOcultos) {
         abDisp.innerText = "***"; entDisp.innerText = "***"; salDisp.innerText = "***";
+        if(refDisp) refDisp.innerText = "***";
+        if(sanDisp) sanDisp.innerText = "***";
         if (fAb) { fAb.innerText = "***"; fEnt.innerText = "***"; fSan.innerText = "***"; fRef.innerText = "***"; }
       } else {
         abDisp.innerText = valAbertura.toFixed(2);
         entDisp.innerText = totalEntradas.toFixed(2);
+        if(refDisp) refDisp.innerText = totalReforcos.toFixed(2);
+        if(sanDisp) sanDisp.innerText = totalSangrias.toFixed(2);
         salDisp.innerText = s.toFixed(2);
         
-        // Atualiza fechamento ao vivo
         if (fAb) {
           fAb.innerText = valAbertura.toFixed(2);
           fEnt.innerText = totalEntradas.toFixed(2);
@@ -435,7 +438,6 @@
       salvarEstadoCaixa();
     }
 
-    // CORREÇÃO: Função voltou a inserir (prepend) os itens de forma correta
     function registrarHistorico(acao, classeCor = "", idItem = null, tipoReg = 'outros') {
       const lista = document.getElementById('listaHistorico');
       const msgVazio = document.getElementById('msgHistoricoVazio');
@@ -460,10 +462,8 @@
         </div>
       `;
       
-      // Sempre adiciona na tela para itens novos
       lista.prepend(item);
       
-      // Garante a inserção no banco de dados local
       let exists = dadosPlanilha.find(d => d.id === finalId);
       if (!exists) {
         dadosPlanilha.push({ id: finalId, Acao: acao, Colaborador: nomeColaboradorAtual, Data: dataStr, Hora: horaStr, Classe: classeCor, tipoReg: tipoReg });
@@ -487,7 +487,6 @@
       
       idItemEmEdicao = id;
       
-      // Realiza o estorno oculto dos totais para permitir recalcular ao salvar
       if (item.tipoReg === 'movimentacao') {
         totalEntradas -= item.valorImpactoCaixa;
         
@@ -554,7 +553,6 @@
       alert("Registro estornado e excluído permanentemente!");
     }
 
-    // --- LÓGICA DE MOVIMENTAÇÃO ---
     function gerenciarDesconto() {
       let temDesc = document.getElementById('temDesconto').value;
       let inputDesc = document.getElementById('valorDesconto');
@@ -569,10 +567,14 @@
     }
 
     function calcular() {
-      let c = parseFloat(document.getElementById('cobrar').value) || 0;
-      let r = parseFloat(document.getElementById('recebido').value) || 0;
+      let cStr = document.getElementById('cobrar').value;
+      let rStr = document.getElementById('recebido').value;
+      let c = Math.abs(parseFloat(String(cStr).replace(',', '.'))) || 0;
+      let r = Math.abs(parseFloat(String(rStr).replace(',', '.'))) || 0;
+      
       let temDesc = document.getElementById('temDesconto').value;
-      let vDesc = temDesc === "Sim" ? (parseFloat(document.getElementById('valorDesconto').value) || 0) : 0;
+      let vDescStr = document.getElementById('valorDesconto').value;
+      let vDesc = temDesc === "Sim" ? (Math.abs(parseFloat(String(vDescStr).replace(',', '.'))) || 0) : 0;
       
       let cobradoFinal = c - vDesc;
       document.getElementById('cobradoFinal').value = cobradoFinal.toFixed(2);
@@ -587,17 +589,18 @@
       let matricula = document.getElementById('mat').value;
       
       let temDescontoStr = document.getElementById('temDesconto').value;
-      let vDesc = temDescontoStr === "Sim" ? (parseFloat(document.getElementById('valorDesconto').value) || 0) : 0;
+      let vDescStr = document.getElementById('valorDesconto').value;
+      let vDesc = temDescontoStr === "Sim" ? (Math.abs(parseFloat(String(vDescStr).replace(',', '.'))) || 0) : 0;
 
       if (!selectMov.value || matricula === "" || cStr === "" || rStr === "" || eStr === "") { 
         alert("⚠️ Preencha todos os campos da Movimentação!"); return; 
       }
       
-      let cOriginal = parseFloat(cStr) || 0;
-      let r = parseFloat(rStr) || 0;
-      let e = parseFloat(eStr) || 0;
+      let cOriginal = Math.abs(parseFloat(String(cStr).replace(',', '.'))) || 0;
+      let r = Math.abs(parseFloat(String(rStr).replace(',', '.'))) || 0;
+      let e = Math.abs(parseFloat(String(eStr).replace(',', '.'))) || 0;
+      
       let cobradoFinal = cOriginal - vDesc;
-
       let trocoTeorico = r - cobradoFinal;
       let alertaTrocoAMais = false;
 
@@ -610,7 +613,8 @@
         alertaTrocoAMais = true;
       }
 
-      let valorImpactoCaixa = cobradoFinal + ((r - cobradoFinal) - e);
+      // O Impacto Real de Caixa sempre será o que entrou (Recebido) menos o que saiu (Troco Entregue)
+      let valorImpactoCaixa = r - e;
       totalEntradas += valorImpactoCaixa;
       
       let nomeTipoMov = selectMov.options[selectMov.selectedIndex].text;
@@ -678,8 +682,8 @@
       let obs = document.getElementById('obsSangria').value.trim();
       
       if (vStr === "" || !selectMotivo.value) { alert("Informe o valor e o tipo da retirada!"); return; }
-      let v = parseFloat(vStr) || 0;
       
+      let v = Math.abs(parseFloat(String(vStr).replace(',', '.'))) || 0;
       totalSangrias += v;
       
       let nomeMotivo = selectMotivo.options[selectMotivo.selectedIndex].text;
@@ -727,9 +731,10 @@
       let vStr = document.getElementById('valorReforco').value;
       let dataRef = document.getElementById('dataReforco').value;
       if (vStr === "" || !dataRef) { alert("⚠️ Informe valor e data do reforço!"); return; }
-      let v = parseFloat(vStr) || 0;
       
+      let v = Math.abs(parseFloat(String(vStr).replace(',', '.'))) || 0;
       totalReforcos += v;
+      
       let msgReforco = `Reforço de Caixa: Injetado R$ ${v.toFixed(2)} (Ref. caixa de: ${dataRef.split('-').reverse().join('/')})`;
       let classeCor = "hist-entrada";
 
@@ -776,7 +781,6 @@
       document.getElementById('entregue').value = "";
     }
 
-    // --- FECHAMENTO E IMPRESSÃO ---
     function conferirFechamento() {
       let vFisicoStr = document.getElementById('valorFisico').value;
       if (vFisicoStr.trim() === "") {
@@ -784,7 +788,7 @@
         return;
       }
 
-      let vFisico = parseFloat(vFisicoStr) || 0;
+      let vFisico = Math.abs(parseFloat(String(vFisicoStr).replace(',', '.'))) || 0;
       let sTeorico = (valAbertura + totalEntradas + totalReforcos) - totalSangrias;
       let diff = vFisico - sTeorico;
       
@@ -821,12 +825,11 @@
       }
       if(!confirm("Tem certeza que deseja fechar o caixa definitivamente e baixar o relatório?")) return;
       
-      let vFisico = parseFloat(vFisicoStr) || 0;
-      let proxAb = parseFloat(proxAbStr) || 0;
+      let vFisico = Math.abs(parseFloat(String(vFisicoStr).replace(',', '.'))) || 0;
+      let proxAb = Math.abs(parseFloat(String(proxAbStr).replace(',', '.'))) || 0;
       let sTeorico = (valAbertura + totalEntradas + totalReforcos) - totalSangrias;
       let diff = vFisico - sTeorico;
 
-      // Grava a linha administrativa direto na tela para ir para o PDF
       registrarHistorico(`🔒 FECHAMENTO DE CAIXA | Valor Físico (Gaveta): R$ ${vFisico.toFixed(2)} | Diferença: R$ ${diff.toFixed(2)} | Fundo Reservado P/ Amanhã: R$ ${proxAb.toFixed(2)}`, "hist-troca", null, 'fechamento');
 
       const historicoCorpo = document.querySelector('.historico-corpo');
@@ -862,7 +865,6 @@
           logoPrint.classList.remove('d-block');
           botoesPrint.forEach(btn => btn.style.display = 'block');
 
-          // Limpa a memória local somente após salvar o PDF com sucesso
           localStorage.removeItem('dadosCaixaEduc');
           valAbertura = 0; totalEntradas = 0; totalSangrias = 0; totalReforcos = 0; nomeColaboradorAtual = "";
           dadosPlanilha = []; valoresOcultos = false;
